@@ -44,7 +44,7 @@ static unsigned int GetMilliseconds()
 
 	gettimeofday(&tp, NULL);
 
-	return (tp.tv_sec * 1000) + (tp.tv_usec / 1000); 
+	return (tp.tv_sec * 1000) + (tp.tv_usec / 1000);
 }
 
 unsigned int Sys_Milliseconds (void)
@@ -147,8 +147,8 @@ static void Vector_Copy(float *a, float *b)
 
 static void Vector_Cross(float *c, float *a, float *b)
 {
-	c[0] = (a[1] * b[2]) - (a[2] * b[1]); 
-	c[1] = (a[2] * b[0]) - (a[0] * b[2]); 
+	c[0] = (a[1] * b[2]) - (a[2] * b[1]);
+	c[1] = (a[2] * b[0]) - (a[0] * b[2]);
 	c[2] = (a[0] * b[1]) - (a[1] * b[0]);
 }
 
@@ -577,7 +577,7 @@ static void ReadMD5Model()
 	FILE *fp = fopen(meshfilename, "r");
 	if(!fp)
 	{
-		Error("couldn't open file %s\n", meshfilename);
+		Error("couldn't open file \"%s\"\n", meshfilename);
 	}
 
 	while(!feof(fp))
@@ -707,7 +707,7 @@ static void ReadMD5Anim()
 	FILE *fp = fopen(animfilename, "r");
 	if(!fp)
 	{
-		Error("couldn't open file %s\n", animfilename);
+		Error("couldn't open file \"%s\"\n", animfilename);
 	}
 
 	md5anim->name = Mem_AllocString(animfilename);
@@ -1216,6 +1216,8 @@ static void DrawMatrix(md5jointmat_t *matrix)
 
 static void RenderHierarchy(md5joint_t *joints, int numjoints)
 {
+	glDisable(GL_DEPTH_TEST);
+
 	// draw the vectors
 	{
 		for(int i = 0; i < numjoints; i++)
@@ -1231,11 +1233,10 @@ static void RenderHierarchy(md5joint_t *joints, int numjoints)
 
 	// draw the skeleton
 	{
+		glBegin(GL_LINES);
 		for(int i = 0; i < numjoints; i++)
 		{
 			if(joints[i].parentindex == -1)
-				continue;
-			if(i != 62)
 				continue;
 
 			md5jointmat_t jointmat;
@@ -1247,15 +1248,13 @@ static void RenderHierarchy(md5joint_t *joints, int numjoints)
 			ComputeGlobalMatrix(&parentmat, joints[i].parentindex, joints);
 
 			glColor3f(1, 1, 1);
-			glBegin(GL_LINES);
-			{
-				glVertex3f(jointmat.m[0][3], jointmat.m[1][3], jointmat.m[2][3]);
-				glVertex3f(parentmat.m[0][3], parentmat.m[1][3], parentmat.m[2][3]);
-			}
-			glEnd();
+			glVertex3f(jointmat.m[0][3], jointmat.m[1][3], jointmat.m[2][3]);
+			glVertex3f(parentmat.m[0][3], parentmat.m[1][3], parentmat.m[2][3]);
 		}
-	
+		glEnd();
 	}
+
+	glEnable(GL_DEPTH_TEST);
 }
 
 typedef struct drawvert_s
@@ -1329,7 +1328,7 @@ static void ComputeNormalsAndTangents(drawsurf_t *surf)
 		// texture area sign bit
 		const float area = d0[3] * d1[4] - d0[4] * d1[3];
 		unsigned int signbit = ( *( unsigned int* )&area ) & ( 1 << 31 );
-	
+		
 		// calculate tangents
 		float tangent[3];
 		tangent[0] = d0[0] * d1[4] - d0[4] * d1[0];
@@ -1546,7 +1545,7 @@ static void JointTest()
 {
 	//ComputeFrameJoints(framejoints, &md5model->anims[0], framenum % md5model->anims[0].numframes);
 	//PrintJointList(framejoints, md5model->numjoints);
-	float time = framenum * 0.016f;
+	float time = framenum * 0.032f;
 	float animtime = time * 6; //md5model->anims[0].framerate;
 	int frame0 = (int)floor(animtime) % md5model->anims[0].numframes;
 	int frame1 = (frame0 + 1) % md5model->anims[0].numframes;
@@ -1573,14 +1572,14 @@ static void JointTest()
 
 	LerpJoints(framejoints, framejoints2[0], framejoints2[1], lerp, md5model->anims[0].numjoints);
 
-	printf("frame %i\n", frame0);
-	PrintJointList(framejoints2[0], md5model->anims[0].numjoints);
-	PrintJointList(framejoints2[1], md5model->anims[0].numjoints);
-	PrintJointList(framejoints, md5model->anims[0].numjoints);
-
-	RenderHierarchy(framejoints, md5model->numjoints);
+	//printf("frame %i\n", frame0);
+	//PrintJointList(framejoints2[0], md5model->anims[0].numjoints);
+	//PrintJointList(framejoints2[1], md5model->anims[0].numjoints);
+	//PrintJointList(framejoints, md5model->anims[0].numjoints);
 
 	RenderGeometry(framejoints);
+
+	RenderHierarchy(framejoints, md5model->numjoints);
 }
 
 //==============================================
@@ -1662,8 +1661,8 @@ static void BuildTickCmd()
 	// Handle mouse movement
 	if(input.lbuttondown)
 	{
-		cmd->anglemove[0] = -0.01f * (float)input.moused[0];
-		cmd->anglemove[1] = -0.01f * (float)input.moused[1];
+		cmd->anglemove[0] = -0.02f * (float)input.moused[0];
+		cmd->anglemove[1] = -0.02f * (float)input.moused[1];
 	}
 }
 
@@ -1707,7 +1706,7 @@ static void WriteInput()
 
 // input playback
 static void ReadNextInput()
-{	
+{
 	if(!inputplayback)
 		return;
 
@@ -1777,6 +1776,18 @@ static void Ticker()
 	DoMove();
 }
 
+// Called every frame to process the current mouse input state
+// We only get updates when the mouse moves so the current mouse
+// position is stored and may be used for multiple frames
+static void ProcessInput()
+{
+	// mousepos has current "frame" mouse pos
+	input.moused[0] = mousepos[0] - input.mousepos[0];
+	input.moused[1] = mousepos[1] - input.mousepos[1];
+	input.mousepos[0] = mousepos[0];
+	input.mousepos[1] = mousepos[1];
+}
+
 static void MainLoop()
 {
 	// initialize the base time
@@ -1792,10 +1803,12 @@ static void MainLoop()
 	// wait until some time has elapsed
 	if(deltatime < 1)
 	{
-		Sys_Sleep(1);
+		Sys_Sleep(0);
 		return;
 	}
 	
+	ProcessInput();
+
 	// figure out how many tick s to run?
 	// sync frames?
 	if(deltatime > 50)
@@ -1888,7 +1901,7 @@ static void SetModelViewMatrix()
 	};
 
 	// matrix to convert from doom coordinates to gl coordinates
-	static float doomtogl[4][4] = 
+	static float doomtogl[4][4] =
 	{
 		{ 1, 0, 0, 0 },
 		{ 0, 0, 1, 0 },
@@ -1989,18 +2002,6 @@ static void Draw()
 //==============================================
 // GLUT/OS/windowing code
 
-// Called every frame to process the current mouse input state
-// We only get updates when the mouse moves so the current mouse
-// position is stored and may be used for multiple frames
-static void ProcessInput()
-{
-	// mousepos has current "frame" mouse pos
-	input.moused[0] = mousepos[0] - input.mousepos[0];
-	input.moused[1] = mousepos[1] - input.mousepos[1];
-	input.mousepos[0] = mousepos[0];
-	input.mousepos[1] = mousepos[1];
-}
-
 static void DisplayFunc()
 {
 	Draw();
@@ -2074,8 +2075,6 @@ static void MouseMoveFunc(int x, int y)
 
 static void MainLoopFunc()
 {
-	ProcessInput();
-
 	MainLoop();
 }
 
